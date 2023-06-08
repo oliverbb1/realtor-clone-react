@@ -1,8 +1,12 @@
 // import { type } from '@testing-library/user-event/dist/type';
 import React, { useState } from 'react'
 import { AiFillEyeInvisible, AiFillEye } from 'react-icons/ai'
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Oauth from '../components/Oauth';
+import { getAuth, createUserWithEmailAndPassword, updateProfile  } from "firebase/auth";
+import {db} from '../firebase'
+import { serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import {toast} from 'react-toastify'
 
 const SignUp = () => {
     const [formData, setFormData] = useState({
@@ -16,11 +20,48 @@ const SignUp = () => {
 
     const {email, password, name} = formData;
 
+    const navigate = useNavigate();
     function onChange(e) {
         setFormData((prevState) => ({
             ...prevState,
             [e.target.id]: e.target.value
         }))
+    }
+    function isValidEmail(email) {
+        return /\S+@\S+\.\S+/.test(email);
+      }
+    async function onSubmit(e) {
+        // console.log("oliver")
+        e.preventDefault();
+        try {
+            const auth =  getAuth();
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                updateProfile(auth.currentUser, {
+                displayName: name
+            })
+            const user = userCredential.user;
+            const formDataCopy = {
+                ...formData 
+            }
+                delete formDataCopy.password
+                formDataCopy.timestamp = serverTimestamp();
+                await setDoc(doc(db, 'users', user.uid), formDataCopy)
+                navigate('/')
+                toast.success("Sign up was successful")
+            console.log(user);
+        } catch (error) {
+            if(name.length <= 5 || name.length === 0)
+            toast.error('Name contains less than five characters')
+            if(password.length <=5  || password.length === 0)
+            toast.error('Password contains less than five characters')
+            if(email.length === 0) {
+                toast.error('Email input field is empty')
+            }
+            else {
+                navigate('/')
+                toast.success("Sign up was successful")
+            }
+        }
     }
     return (
         <section>
@@ -30,7 +71,7 @@ const SignUp = () => {
                     <img src="https://images.unsplash.com/flagged/photo-1564767609342-620cb19b2357?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8a2V5fGVufDB8fDB8fHww&auto=format&fit=crop&w=1000&q=60" alt="key" className='w-full rounded-2xl' />
                 </div>
                 <div className='w-full md:w-[67%] lg:w-[40%] lg:ml-20'>
-                    <form >
+                    <form onSubmit={onSubmit}>
                         <input 
                             type="text" 
                             id='name' 
